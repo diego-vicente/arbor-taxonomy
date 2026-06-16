@@ -226,37 +226,112 @@ var classListOf = (node) => {
   return typeof existing === "string" ? [existing] : [];
 };
 var INTERNAL_LINK_CLASS = "internal";
+var BROKEN_LINK_CLASS = "broken";
 var LINK_TYPE_ATTR = "data-link-type";
 var SLUG_ATTR = "data-slug";
-var colorLinksByType = (root, _slug, componentData) => {
-  const slugToType = /* @__PURE__ */ new Map();
-  for (const file of componentData.allFiles ?? []) {
+var LOCK_CLASS = "arbor-lock";
+var VAULT_TYPES_KEY = "__arborVaultTypes";
+var ctxStore = (ctx) => ctx;
+var readVaultTypes = (ctx) => {
+  if (!ctx || typeof ctx !== "object") {
+    return void 0;
+  }
+  const stored = ctx[VAULT_TYPES_KEY];
+  return stored instanceof Map ? stored : void 0;
+};
+var slugTypeMap = (files) => {
+  const map = /* @__PURE__ */ new Map();
+  for (const file of files ?? []) {
     const fileSlug = file?.slug;
     if (typeof fileSlug !== "string") {
       continue;
     }
     const type = normalizeType(file.frontmatter?.type);
-    if (type) {
-      slugToType.set(fileSlug, type);
-    }
+    map.set(fileSlug, type ?? "");
   }
+  return map;
+};
+var lockIcon = () => ({
+  type: "element",
+  tagName: "svg",
+  properties: {
+    className: [LOCK_CLASS],
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 24,
+    height: 24,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": "true"
+  },
+  children: [
+    {
+      type: "element",
+      tagName: "rect",
+      properties: { width: 18, height: 11, x: 3, y: 11, rx: 2, ry: 2 },
+      children: []
+    },
+    {
+      type: "element",
+      tagName: "path",
+      properties: { d: "M7 11V7a5 5 0 0 1 10 0v4" },
+      children: []
+    }
+  ]
+});
+var appendLock = (node) => {
+  node.children.push(lockIcon());
+};
+var colorLinksByType = (root, _slug, componentData) => {
+  const publishedTypes = slugTypeMap(componentData.allFiles);
+  const vaultTypes = readVaultTypes(componentData.ctx);
   visit(root, "element", (node) => {
     if (node.tagName !== "a" || !node.properties) {
       return;
     }
-    if (!classListOf(node).includes(INTERNAL_LINK_CLASS)) {
+    const classes = classListOf(node);
+    if (!classes.includes(INTERNAL_LINK_CLASS)) {
       return;
     }
     const slug = node.properties[SLUG_ATTR];
     if (typeof slug !== "string") {
       return;
     }
-    const type = slugToType.get(slug);
-    if (type) {
-      node.properties[LINK_TYPE_ATTR] = type;
+    if (!classes.includes(BROKEN_LINK_CLASS)) {
+      const type = publishedTypes.get(slug);
+      if (type) {
+        node.properties[LINK_TYPE_ATTR] = type;
+      }
+      return;
+    }
+    if (vaultTypes?.has(slug)) {
+      const type = vaultTypes.get(slug);
+      if (type) {
+        node.properties[LINK_TYPE_ATTR] = type;
+      }
+      appendLock(node);
     }
   });
 };
+var ArborTaxonomyRecorder = () => ({
+  name: "ArborTaxonomyRecorder",
+  shouldPublish(ctx, [, vfile]) {
+    const store = ctxStore(ctx);
+    let map = store[VAULT_TYPES_KEY];
+    if (!(map instanceof Map)) {
+      map = /* @__PURE__ */ new Map();
+      store[VAULT_TYPES_KEY] = map;
+    }
+    const data = vfile.data;
+    if (typeof data.slug === "string") {
+      map.set(data.slug, normalizeType(data.frontmatter?.type) ?? "");
+    }
+    return true;
+  }
+});
 var NoopBody = () => {
   const Component = (_props) => null;
   return Component;
@@ -269,6 +344,6 @@ var ArborTaxonomy = () => ({
   treeTransforms: () => [colorLinksByType]
 });
 
-export { ArborTaxonomy, colorLinksByType, normalizeType };
+export { ArborTaxonomy, ArborTaxonomyRecorder, colorLinksByType, normalizeType };
 //# sourceMappingURL=index.js.map
 //# sourceMappingURL=index.js.map

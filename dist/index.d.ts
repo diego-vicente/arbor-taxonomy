@@ -1,6 +1,6 @@
 import { Root } from 'hast';
-import { QuartzPageTypePlugin, QuartzComponentProps } from '@quartz-community/types';
-export { PageGenerator, PageMatcher, QuartzComponent, QuartzComponentConstructor, QuartzComponentProps, QuartzPageTypePlugin, QuartzPageTypePluginInstance, VirtualPage } from '@quartz-community/types';
+import { QuartzPageTypePlugin, QuartzFilterPlugin, QuartzComponentProps } from '@quartz-community/types';
+export { PageGenerator, PageMatcher, QuartzComponent, QuartzComponentConstructor, QuartzComponentProps, QuartzFilterPlugin, QuartzPageTypePlugin, QuartzPageTypePluginInstance, VirtualPage } from '@quartz-community/types';
 
 /** Frontmatter `type` value can be a wikilink string, a plain string, or a list. */
 type RawType = unknown;
@@ -16,24 +16,34 @@ type RawType = unknown;
  */
 declare const normalizeType: (raw: RawType) => string | null;
 /**
- * Render-time HAST transform: tag each *published* internal link with the
- * `type` of the note it points to, exposed as `data-link-type`. Arbor's CSS
- * maps each type slug to its Catppuccin color; links to typeless notes (no
- * attribute) keep the default accent, and broken links keep their grey
- * `.broken` styling from crawl-links.
+ * Render-time HAST transform: color each internal link by the `type` of the
+ * note it points to, exposed as `data-link-type` (Arbor's CSS maps each slug to
+ * its Catppuccin hue). Three cases:
  *
- * `componentData.allFiles` is the post-publish-filter file set, so only
- * published targets get a color here. Detecting *unpublished* targets (to grey
- * them + add a padlock) needs the full-vault map and lands in a later step.
+ *  - **Published target** (present in `allFiles`): tag with its type → colored.
+ *  - **Unpublished but existing** (absent from `allFiles`, present in the full
+ *    vault map; crawl-links marked it `.broken`): tag with its type AND append a
+ *    padlock — colored-but-greyed, signaling "exists, not published".
+ *  - **Non-existent** (absent everywhere): left as a plain grey `.broken` link.
+ *
+ * Typeless targets get no attribute and keep the default accent color.
  */
 declare const colorLinksByType: (root: Root, _slug: unknown, componentData: QuartzComponentProps) => void;
+/**
+ * Records every note's `slug → type` into `ctx` so the render-time transform can
+ * recognize unpublished targets. Must run **before** any publish/draft filter so
+ * it sees the full vault; wire it at the front of `config.plugins.filters`.
+ * Always returns `true` — it prunes nothing.
+ */
+declare const ArborTaxonomyRecorder: QuartzFilterPlugin;
 /**
  * Arbor Taxonomy — colors internal links by the target note's `type`.
  *
  * Registered as a `pageType` plugin purely to hook `treeTransforms`, which run
  * at render time when `allFiles` (with frontmatter) is available. It generates
- * no routes and matches no files.
+ * no routes and matches no files. Pair it with {@link ArborTaxonomyRecorder} to
+ * also flag unpublished targets with a padlock.
  */
 declare const ArborTaxonomy: QuartzPageTypePlugin;
 
-export { ArborTaxonomy, colorLinksByType, normalizeType };
+export { ArborTaxonomy, ArborTaxonomyRecorder, colorLinksByType, normalizeType };

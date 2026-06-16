@@ -1,4 +1,4 @@
-export { ArborTaxonomy, colorLinksByType, normalizeType } from "./pageType";
+export { ArborTaxonomy, ArborTaxonomyRecorder, colorLinksByType, normalizeType } from "./pageType";
 
 // Re-export shared types from @quartz-community/types
 export type {
@@ -7,6 +7,7 @@ export type {
   QuartzComponentConstructor,
   QuartzPageTypePlugin,
   QuartzPageTypePluginInstance,
+  QuartzFilterPlugin,
   PageMatcher,
   PageGenerator,
   VirtualPage,

@@ -6,6 +6,9 @@ import type {
   QuartzComponentConstructor,
   QuartzPageTypePlugin,
   QuartzPageTypePluginInstance,
+  QuartzFilterPlugin,
+  ProcessedContent,
+  BuildCtx,
 } from "@quartz-community/types";
 
 /** Frontmatter `type` value can be a wikilink string, a plain string, or a list. */
@@ -52,54 +55,161 @@ const classListOf = (node: Element): string[] => {
 };
 
 const INTERNAL_LINK_CLASS = "internal";
+const BROKEN_LINK_CLASS = "broken";
 const LINK_TYPE_ATTR = "data-link-type";
 const SLUG_ATTR = "data-slug";
+const LOCK_CLASS = "arbor-lock";
 
 /**
- * Render-time HAST transform: tag each *published* internal link with the
- * `type` of the note it points to, exposed as `data-link-type`. Arbor's CSS
- * maps each type slug to its Catppuccin color; links to typeless notes (no
- * attribute) keep the default accent, and broken links keep their grey
- * `.broken` styling from crawl-links.
+ * Key under which the recorder filter stashes the full-vault `slug → type` map
+ * on the shared `BuildCtx`. The render-time transform reads it back from
+ * `componentData.ctx` to tell *unpublished-but-existing* targets (which crawl-
+ * links also marks `.broken`) apart from truly non-existent ones.
+ */
+const VAULT_TYPES_KEY = "__arborVaultTypes";
+
+type VaultTypeMap = Map<string, string>;
+
+const ctxStore = (ctx: BuildCtx): Record<string, unknown> =>
+  ctx as unknown as Record<string, unknown>;
+
+const readVaultTypes = (ctx: unknown): VaultTypeMap | undefined => {
+  if (!ctx || typeof ctx !== "object") {
+    return undefined;
+  }
+  const stored = (ctx as Record<string, unknown>)[VAULT_TYPES_KEY];
+  return stored instanceof Map ? (stored as VaultTypeMap) : undefined;
+};
+
+/** Build a `slug → normalized type` map from a set of files (published or full vault). */
+const slugTypeMap = (files: QuartzComponentProps["allFiles"] | undefined): VaultTypeMap => {
+  const map: VaultTypeMap = new Map();
+  for (const file of files ?? []) {
+    const fileSlug = file?.slug;
+    if (typeof fileSlug !== "string") {
+      continue;
+    }
+    const type = normalizeType((file.frontmatter as Record<string, unknown> | undefined)?.type);
+    // Record every file (type may be ""): existence drives the padlock, type drives the color.
+    map.set(fileSlug, type ?? "");
+  }
+  return map;
+};
+
+/** A Lucide `lock` glyph as a HAST <svg>, inheriting the link's (greyed) color. */
+const lockIcon = (): Element => ({
+  type: "element",
+  tagName: "svg",
+  properties: {
+    className: [LOCK_CLASS],
+    xmlns: "http://www.w3.org/2000/svg",
+    width: 24,
+    height: 24,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": "true",
+  },
+  children: [
+    {
+      type: "element",
+      tagName: "rect",
+      properties: { width: 18, height: 11, x: 3, y: 11, rx: 2, ry: 2 },
+      children: [],
+    },
+    {
+      type: "element",
+      tagName: "path",
+      properties: { d: "M7 11V7a5 5 0 0 1 10 0v4" },
+      children: [],
+    },
+  ],
+});
+
+const appendLock = (node: Element): void => {
+  node.children.push(lockIcon());
+};
+
+/**
+ * Render-time HAST transform: color each internal link by the `type` of the
+ * note it points to, exposed as `data-link-type` (Arbor's CSS maps each slug to
+ * its Catppuccin hue). Three cases:
  *
- * `componentData.allFiles` is the post-publish-filter file set, so only
- * published targets get a color here. Detecting *unpublished* targets (to grey
- * them + add a padlock) needs the full-vault map and lands in a later step.
+ *  - **Published target** (present in `allFiles`): tag with its type → colored.
+ *  - **Unpublished but existing** (absent from `allFiles`, present in the full
+ *    vault map; crawl-links marked it `.broken`): tag with its type AND append a
+ *    padlock — colored-but-greyed, signaling "exists, not published".
+ *  - **Non-existent** (absent everywhere): left as a plain grey `.broken` link.
+ *
+ * Typeless targets get no attribute and keep the default accent color.
  */
 export const colorLinksByType = (
   root: Root,
   _slug: unknown,
   componentData: QuartzComponentProps,
 ): void => {
-  const slugToType = new Map<string, string>();
-  for (const file of componentData.allFiles ?? []) {
-    const fileSlug = file?.slug;
-    if (typeof fileSlug !== "string") {
-      continue;
-    }
-    const type = normalizeType((file.frontmatter as Record<string, unknown> | undefined)?.type);
-    if (type) {
-      slugToType.set(fileSlug, type);
-    }
-  }
+  const publishedTypes = slugTypeMap(componentData.allFiles);
+  const vaultTypes = readVaultTypes(componentData.ctx);
 
   visit(root, "element", (node: Element) => {
     if (node.tagName !== "a" || !node.properties) {
       return;
     }
-    if (!classListOf(node).includes(INTERNAL_LINK_CLASS)) {
+    const classes = classListOf(node);
+    if (!classes.includes(INTERNAL_LINK_CLASS)) {
       return;
     }
     const slug = node.properties[SLUG_ATTR];
     if (typeof slug !== "string") {
       return;
     }
-    const type = slugToType.get(slug);
-    if (type) {
-      node.properties[LINK_TYPE_ATTR] = type;
+
+    if (!classes.includes(BROKEN_LINK_CLASS)) {
+      // Reachable internal link → color by its published type, if any.
+      const type = publishedTypes.get(slug);
+      if (type) {
+        node.properties[LINK_TYPE_ATTR] = type;
+      }
+      return;
     }
+
+    // Broken (target not in the published set): is it merely unpublished, or gone?
+    if (vaultTypes?.has(slug)) {
+      const type = vaultTypes.get(slug);
+      if (type) {
+        node.properties[LINK_TYPE_ATTR] = type;
+      }
+      appendLock(node);
+    }
+    // else: truly non-existent — leave the plain grey `.broken` styling.
   });
 };
+
+/**
+ * Records every note's `slug → type` into `ctx` so the render-time transform can
+ * recognize unpublished targets. Must run **before** any publish/draft filter so
+ * it sees the full vault; wire it at the front of `config.plugins.filters`.
+ * Always returns `true` — it prunes nothing.
+ */
+export const ArborTaxonomyRecorder: QuartzFilterPlugin = () => ({
+  name: "ArborTaxonomyRecorder",
+  shouldPublish(ctx: BuildCtx, [, vfile]: ProcessedContent) {
+    const store = ctxStore(ctx);
+    let map = store[VAULT_TYPES_KEY];
+    if (!(map instanceof Map)) {
+      map = new Map<string, string>();
+      store[VAULT_TYPES_KEY] = map;
+    }
+    const data = vfile.data as { slug?: string; frontmatter?: Record<string, unknown> };
+    if (typeof data.slug === "string") {
+      (map as VaultTypeMap).set(data.slug, normalizeType(data.frontmatter?.type) ?? "");
+    }
+    return true;
+  },
+});
 
 /**
  * Stub body: this plugin owns no pages (`match` always returns false), so the
@@ -116,7 +226,8 @@ const NoopBody: QuartzComponentConstructor = () => {
  *
  * Registered as a `pageType` plugin purely to hook `treeTransforms`, which run
  * at render time when `allFiles` (with frontmatter) is available. It generates
- * no routes and matches no files.
+ * no routes and matches no files. Pair it with {@link ArborTaxonomyRecorder} to
+ * also flag unpublished targets with a padlock.
  */
 export const ArborTaxonomy: QuartzPageTypePlugin = (): QuartzPageTypePluginInstance => ({
   name: "ArborTaxonomy",
