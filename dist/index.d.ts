@@ -29,6 +29,10 @@ declare const normalizeType: (raw: RawType) => string | null;
  *  - **Non-existent** (absent everywhere; crawl-links marked it `.broken`): left
  *    as a plain grey `.broken` link.
  *
+ * A link to a TYPE's own definition note (e.g. `[[Idea]]`) is colored by that type
+ * itself (yellow), not by the type-note's frontmatter type (which is "Obsidian
+ * Entity"). The set of type slugs is exactly the set of normalized `type` values.
+ *
  * Typeless targets get no `data-link-type` and keep the default accent color.
  */
 declare const colorLinksByType: (root: Root, _slug: unknown, componentData: QuartzComponentProps) => void;

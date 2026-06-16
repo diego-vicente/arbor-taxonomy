@@ -148,6 +148,10 @@ const appendLock = (node: Element): void => {
  *  - **Non-existent** (absent everywhere; crawl-links marked it `.broken`): left
  *    as a plain grey `.broken` link.
  *
+ * A link to a TYPE's own definition note (e.g. `[[Idea]]`) is colored by that type
+ * itself (yellow), not by the type-note's frontmatter type (which is "Obsidian
+ * Entity"). The set of type slugs is exactly the set of normalized `type` values.
+ *
  * Typeless targets get no `data-link-type` and keep the default accent color.
  */
 export const colorLinksByType = (
@@ -156,6 +160,7 @@ export const colorLinksByType = (
   componentData: QuartzComponentProps,
 ): void => {
   const publishedTypes = slugTypeMap(componentData.allFiles);
+  const typeSlugs = new Set(publishedTypes.values());
   const vaultTypes = readVaultTypes(componentData.ctx);
 
   visit(root, "element", (node: Element) => {
@@ -170,6 +175,12 @@ export const colorLinksByType = (
     }
     const slug = node.properties[SLUG_ATTR];
     if (typeof slug !== "string") {
+      return;
+    }
+
+    if (typeSlugs.has(slug)) {
+      // Link to a type's own note → color it as that type, not "obsidian-entity".
+      node.properties[LINK_TYPE_ATTR] = slug;
       return;
     }
 

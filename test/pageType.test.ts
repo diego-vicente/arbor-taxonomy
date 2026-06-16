@@ -69,6 +69,24 @@ describe("colorLinksByType", () => {
     expect(internal.properties?.["data-link-type"]).toBe("coffee-beans");
   });
 
+  it("colors a link to a type's own note by that type, not its frontmatter type", () => {
+    // The "Idea" note (slug "idea") is itself typed "[[Obsidian Entity]]", but a
+    // link to it should read as the Idea type (yellow), not obsidian-entity.
+    const toIdea = link({ className: ["internal"], "data-slug": "idea" });
+    const root = treeOf(toIdea);
+
+    colorLinksByType(
+      root,
+      "any",
+      componentDataWith([
+        { slug: "idea", type: "[[Obsidian Entity]]" },
+        { slug: "some-bright-idea", type: "[[Idea]]" }, // makes "idea" a known type slug
+      ]),
+    );
+
+    expect(toIdea.properties?.["data-link-type"]).toBe("idea");
+  });
+
   it("leaves external links and typeless targets untouched", () => {
     const external = link({ className: ["external"], href: "https://example.com" });
     const typeless = link({ className: ["internal"], "data-slug": "misc/scratch" });

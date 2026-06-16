@@ -288,6 +288,7 @@ var appendLock = (node) => {
 };
 var colorLinksByType = (root, _slug, componentData) => {
   const publishedTypes = slugTypeMap(componentData.allFiles);
+  const typeSlugs = new Set(publishedTypes.values());
   const vaultTypes = readVaultTypes(componentData.ctx);
   visit(root, "element", (node) => {
     if (node.tagName !== "a" || !node.properties) {
@@ -299,6 +300,10 @@ var colorLinksByType = (root, _slug, componentData) => {
     }
     const slug = node.properties[SLUG_ATTR];
     if (typeof slug !== "string") {
+      return;
+    }
+    if (typeSlugs.has(slug)) {
+      node.properties[LINK_TYPE_ATTR] = slug;
       return;
     }
     if (publishedTypes.has(slug)) {
