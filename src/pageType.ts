@@ -160,8 +160,14 @@ export const colorLinksByType = (
   componentData: QuartzComponentProps,
 ): void => {
   const publishedTypes = slugTypeMap(componentData.allFiles);
-  const typeSlugs = new Set(publishedTypes.values());
   const vaultTypes = readVaultTypes(componentData.ctx);
+  // Type slugs come from the FULL vault, not just published notes — otherwise a
+  // type whose instances are all unpublished (e.g. Journal Entry) wouldn't be
+  // recognized as a type, and links to its note wouldn't self-color.
+  const typeSlugs = new Set<string>([
+    ...publishedTypes.values(),
+    ...(vaultTypes ? vaultTypes.values() : []),
+  ]);
 
   visit(root, "element", (node: Element) => {
     if (node.tagName !== "a" || !node.properties) {
