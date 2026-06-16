@@ -1,22 +1,20 @@
 {
-  "name": "@quartz-community/plugin-template",
+  "name": "arbor-taxonomy",
   "version": "0.1.0",
-  "description": "Template repository for Quartz community plugins.",
+  "description": "Quartz v5 plugin that colors internal links by the target note's type (and flags unpublished links).",
   "type": "module",
   "license": "MIT",
-  "author": "Quartz Community",
-  "homepage": "https://quartz.jzhao.xyz",
+  "author": "Diego Vicente",
+  "homepage": "https://github.com/diego-vicente/arbor-taxonomy",
   "repository": {
     "type": "git",
-    "url": "https://github.com/quartz-community/plugin-template"
+    "url": "https://github.com/diego-vicente/arbor-taxonomy"
   },
   "keywords": [
     "quartz",
     "quartz-plugin",
-    "plugin-template",
-    "remark",
-    "rehype",
-    "mdast",
+    "links",
+    "taxonomy",
     "hast"
   ],
   "files": [
@@ -33,10 +31,6 @@
     "./types": {
       "types": "./dist/types.d.ts",
       "import": "./dist/types.js"
-    },
-    "./components": {
-      "types": "./dist/components/index.d.ts",
-      "import": "./dist/components/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -94,32 +88,16 @@
     "vitest": "^2.1.9"
   },
   "quartz": {
-    "name": "plugin-template",
-    "displayName": "Plugin Template",
-    "category": "transformer",
-    "version": "1.0.0",
+    "name": "arbor-taxonomy",
+    "displayName": "Arbor Taxonomy (link colors)",
+    "category": "pageType",
+    "version": "0.1.0",
     "quartzVersion": ">=5.0.0",
     "dependencies": [],
-    "defaultOrder": 50,
+    "defaultOrder": 80,
     "defaultEnabled": true,
     "defaultOptions": {},
-    "optionSchema": {
-      "highlightToken": {
-        "type": "enum",
-        "values": [
-          "==",
-          "**",
-          "~~"
-        ]
-      }
-    },
-    "components": {
-      "ExampleComponent": {
-        "displayName": "Example Component",
-        "defaultPosition": "right",
-        "defaultPriority": 50
-      }
-    }
+    "optionSchema": {}
   },
   "engines": {
     "node": ">=22",
