@@ -21,12 +21,15 @@ declare const normalizeType: (raw: RawType) => string | null;
  * its Catppuccin hue). Three cases:
  *
  *  - **Published target** (present in `allFiles`): tag with its type → colored.
- *  - **Unpublished but existing** (absent from `allFiles`, present in the full
- *    vault map; crawl-links marked it `.broken`): tag with its type AND append a
- *    padlock — colored-but-greyed, signaling "exists, not published".
- *  - **Non-existent** (absent everywhere): left as a plain grey `.broken` link.
+ *  - **Unpublished but existing** (absent from `allFiles` but present in the full
+ *    vault map): tag with its type, mark `.arbor-unpublished`, AND append a
+ *    padlock — colored-but-greyed, signaling "exists, not published". Note these
+ *    are NOT `.broken`: Quartz seeds `ctx.allSlugs` from the *whole* vault, so
+ *    crawl-links only marks genuinely missing targets broken.
+ *  - **Non-existent** (absent everywhere; crawl-links marked it `.broken`): left
+ *    as a plain grey `.broken` link.
  *
- * Typeless targets get no attribute and keep the default accent color.
+ * Typeless targets get no `data-link-type` and keep the default accent color.
  */
 declare const colorLinksByType: (root: Root, _slug: unknown, componentData: QuartzComponentProps) => void;
 /**

@@ -59,6 +59,7 @@ const BROKEN_LINK_CLASS = "broken";
 const LINK_TYPE_ATTR = "data-link-type";
 const SLUG_ATTR = "data-slug";
 const LOCK_CLASS = "arbor-lock";
+const UNPUBLISHED_CLASS = "arbor-unpublished";
 
 /**
  * Key under which the recorder filter stashes the full-vault `slug → type` map
@@ -139,12 +140,15 @@ const appendLock = (node: Element): void => {
  * its Catppuccin hue). Three cases:
  *
  *  - **Published target** (present in `allFiles`): tag with its type → colored.
- *  - **Unpublished but existing** (absent from `allFiles`, present in the full
- *    vault map; crawl-links marked it `.broken`): tag with its type AND append a
- *    padlock — colored-but-greyed, signaling "exists, not published".
- *  - **Non-existent** (absent everywhere): left as a plain grey `.broken` link.
+ *  - **Unpublished but existing** (absent from `allFiles` but present in the full
+ *    vault map): tag with its type, mark `.arbor-unpublished`, AND append a
+ *    padlock — colored-but-greyed, signaling "exists, not published". Note these
+ *    are NOT `.broken`: Quartz seeds `ctx.allSlugs` from the *whole* vault, so
+ *    crawl-links only marks genuinely missing targets broken.
+ *  - **Non-existent** (absent everywhere; crawl-links marked it `.broken`): left
+ *    as a plain grey `.broken` link.
  *
- * Typeless targets get no attribute and keep the default accent color.
+ * Typeless targets get no `data-link-type` and keep the default accent color.
  */
 export const colorLinksByType = (
   root: Root,
@@ -159,7 +163,9 @@ export const colorLinksByType = (
       return;
     }
     const classes = classListOf(node);
-    if (!classes.includes(INTERNAL_LINK_CLASS)) {
+    if (!classes.includes(INTERNAL_LINK_CLASS) || classes.includes(BROKEN_LINK_CLASS)) {
+      // Skip non-internal links and genuinely broken (non-existent) ones — the
+      // latter keep their plain grey `.broken` styling.
       return;
     }
     const slug = node.properties[SLUG_ATTR];
@@ -167,8 +173,8 @@ export const colorLinksByType = (
       return;
     }
 
-    if (!classes.includes(BROKEN_LINK_CLASS)) {
-      // Reachable internal link → color by its published type, if any.
+    if (publishedTypes.has(slug)) {
+      // Reachable, published link → color by its type, if any.
       const type = publishedTypes.get(slug);
       if (type) {
         node.properties[LINK_TYPE_ATTR] = type;
@@ -176,15 +182,16 @@ export const colorLinksByType = (
       return;
     }
 
-    // Broken (target not in the published set): is it merely unpublished, or gone?
+    // Not published. If it exists elsewhere in the vault, it's unpublished:
+    // color it, flag it, and padlock it. Otherwise leave it alone.
     if (vaultTypes?.has(slug)) {
       const type = vaultTypes.get(slug);
       if (type) {
         node.properties[LINK_TYPE_ATTR] = type;
       }
+      node.properties.className = [...classes, UNPUBLISHED_CLASS];
       appendLock(node);
     }
-    // else: truly non-existent — leave the plain grey `.broken` styling.
   });
 };
 

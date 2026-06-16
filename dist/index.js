@@ -230,6 +230,7 @@ var BROKEN_LINK_CLASS = "broken";
 var LINK_TYPE_ATTR = "data-link-type";
 var SLUG_ATTR = "data-slug";
 var LOCK_CLASS = "arbor-lock";
+var UNPUBLISHED_CLASS = "arbor-unpublished";
 var VAULT_TYPES_KEY = "__arborVaultTypes";
 var ctxStore = (ctx) => ctx;
 var readVaultTypes = (ctx) => {
@@ -293,14 +294,14 @@ var colorLinksByType = (root, _slug, componentData) => {
       return;
     }
     const classes = classListOf(node);
-    if (!classes.includes(INTERNAL_LINK_CLASS)) {
+    if (!classes.includes(INTERNAL_LINK_CLASS) || classes.includes(BROKEN_LINK_CLASS)) {
       return;
     }
     const slug = node.properties[SLUG_ATTR];
     if (typeof slug !== "string") {
       return;
     }
-    if (!classes.includes(BROKEN_LINK_CLASS)) {
+    if (publishedTypes.has(slug)) {
       const type = publishedTypes.get(slug);
       if (type) {
         node.properties[LINK_TYPE_ATTR] = type;
@@ -312,6 +313,7 @@ var colorLinksByType = (root, _slug, componentData) => {
       if (type) {
         node.properties[LINK_TYPE_ATTR] = type;
       }
+      node.properties.className = [...classes, UNPUBLISHED_CLASS];
       appendLock(node);
     }
   });

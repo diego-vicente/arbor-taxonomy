@@ -80,10 +80,10 @@ describe("colorLinksByType", () => {
     expect(typeless.properties?.["data-link-type"]).toBeUndefined();
   });
 
-  it("leaves a truly non-existent broken link plain grey (no type, no padlock)", () => {
+  it("leaves a truly non-existent .broken link plain grey (no type, no padlock)", () => {
     const broken = link({ className: ["internal", "broken"], "data-slug": "ghost/note" });
     const root = treeOf(broken);
-    const vault = new Map([["real/note", "concept"]]); // ghost/note is absent
+    const vault = new Map([["real/note", "concept"]]); // ghost/note is absent everywhere
 
     colorLinksByType(
       root,
@@ -95,8 +95,9 @@ describe("colorLinksByType", () => {
     expect(lockOf(broken)).toBeUndefined();
   });
 
-  it("colors an unpublished-but-existing broken link by type and appends a padlock", () => {
-    const unpublished = link({ className: ["internal", "broken"], "data-slug": "drafts/secret" });
+  it("colors an unpublished-but-existing link by type, flags it, and appends a padlock", () => {
+    // Unpublished links are NOT broken (Quartz seeds allSlugs from the whole vault).
+    const unpublished = link({ className: ["internal"], "data-slug": "drafts/secret" });
     const root = treeOf(unpublished);
     // Present in the full vault map, absent from allFiles → unpublished.
     const vault = new Map([["drafts/secret", "concept"]]);
@@ -104,17 +105,19 @@ describe("colorLinksByType", () => {
     colorLinksByType(root, "any", componentDataWith([], vault));
 
     expect(unpublished.properties?.["data-link-type"]).toBe("concept");
+    expect(unpublished.properties?.className).toContain("arbor-unpublished");
     expect(lockOf(unpublished)?.properties?.className).toContain("arbor-lock");
   });
 
   it("padlocks an unpublished typeless note without coloring it", () => {
-    const unpublished = link({ className: ["internal", "broken"], "data-slug": "drafts/plain" });
+    const unpublished = link({ className: ["internal"], "data-slug": "drafts/plain" });
     const root = treeOf(unpublished);
     const vault = new Map([["drafts/plain", ""]]); // exists, but no type
 
     colorLinksByType(root, "any", componentDataWith([], vault));
 
     expect(unpublished.properties?.["data-link-type"]).toBeUndefined();
+    expect(unpublished.properties?.className).toContain("arbor-unpublished");
     expect(lockOf(unpublished)).toBeDefined();
   });
 });
