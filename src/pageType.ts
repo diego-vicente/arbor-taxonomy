@@ -69,6 +69,14 @@ const UNPUBLISHED_CLASS = "arbor-unpublished";
  */
 const VAULT_TYPES_KEY = "__arborVaultTypes";
 
+/**
+ * Key under which the recorder stashes the FULL-vault file list (published +
+ * unpublished `QuartzPluginData`). bases-page reads this from ctx as its
+ * `linkUniverse` so backlink aggregates (Count) include unpublished notes while
+ * rows stay published-only.
+ */
+const VAULT_FILES_KEY = "fullVaultFiles";
+
 type VaultTypeMap = Map<string, string>;
 
 const ctxStore = (ctx: BuildCtx): Record<string, unknown> =>
@@ -213,9 +221,11 @@ export const colorLinksByType = (
 };
 
 /**
- * Records every note's `slug → type` into `ctx` so the render-time transform can
- * recognize unpublished targets. Must run **before** any publish/draft filter so
- * it sees the full vault; wire it at the front of `config.plugins.filters`.
+ * Records the full vault into `ctx` so render-time consumers can see unpublished
+ * notes: a `slug → type` map (for link classification) and the full file list
+ * (`ctx.fullVaultFiles`, used by bases-page as its `linkUniverse` so backlink
+ * aggregates include unpublished notes). Must run **before** any publish/draft
+ * filter so it sees everything; wire it at the front of `config.plugins.filters`.
  * Always returns `true` — it prunes nothing.
  */
 export const ArborTaxonomyRecorder: QuartzFilterPlugin = () => ({
@@ -227,6 +237,12 @@ export const ArborTaxonomyRecorder: QuartzFilterPlugin = () => ({
       map = new Map<string, string>();
       store[VAULT_TYPES_KEY] = map;
     }
+    let files = store[VAULT_FILES_KEY];
+    if (!Array.isArray(files)) {
+      files = [];
+      store[VAULT_FILES_KEY] = files;
+    }
+    (files as unknown[]).push(vfile.data);
     const data = vfile.data as { slug?: string; frontmatter?: Record<string, unknown> };
     if (typeof data.slug === "string") {
       (map as VaultTypeMap).set(data.slug, normalizeType(data.frontmatter?.type) ?? "");

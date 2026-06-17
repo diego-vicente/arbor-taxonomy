@@ -232,6 +232,7 @@ var SLUG_ATTR = "data-slug";
 var LOCK_CLASS = "arbor-lock";
 var UNPUBLISHED_CLASS = "arbor-unpublished";
 var VAULT_TYPES_KEY = "__arborVaultTypes";
+var VAULT_FILES_KEY = "fullVaultFiles";
 var ctxStore = (ctx) => ctx;
 var readVaultTypes = (ctx) => {
   if (!ctx || typeof ctx !== "object") {
@@ -335,6 +336,12 @@ var ArborTaxonomyRecorder = () => ({
       map = /* @__PURE__ */ new Map();
       store[VAULT_TYPES_KEY] = map;
     }
+    let files = store[VAULT_FILES_KEY];
+    if (!Array.isArray(files)) {
+      files = [];
+      store[VAULT_FILES_KEY] = files;
+    }
+    files.push(vfile.data);
     const data = vfile.data;
     if (typeof data.slug === "string") {
       map.set(data.slug, normalizeType(data.frontmatter?.type) ?? "");

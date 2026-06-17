@@ -37,9 +37,11 @@ declare const normalizeType: (raw: RawType) => string | null;
  */
 declare const colorLinksByType: (root: Root, _slug: unknown, componentData: QuartzComponentProps) => void;
 /**
- * Records every note's `slug → type` into `ctx` so the render-time transform can
- * recognize unpublished targets. Must run **before** any publish/draft filter so
- * it sees the full vault; wire it at the front of `config.plugins.filters`.
+ * Records the full vault into `ctx` so render-time consumers can see unpublished
+ * notes: a `slug → type` map (for link classification) and the full file list
+ * (`ctx.fullVaultFiles`, used by bases-page as its `linkUniverse` so backlink
+ * aggregates include unpublished notes). Must run **before** any publish/draft
+ * filter so it sees everything; wire it at the front of `config.plugins.filters`.
  * Always returns `true` — it prunes nothing.
  */
 declare const ArborTaxonomyRecorder: QuartzFilterPlugin;
