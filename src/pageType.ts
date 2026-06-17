@@ -105,34 +105,29 @@ const slugTypeMap = (files: QuartzComponentProps["allFiles"] | undefined): Vault
   return map;
 };
 
-/** A Lucide `lock` glyph as a HAST <svg>, inheriting the link's (greyed) color. */
+/**
+ * A SOLID padlock glyph (Material-style) as a HAST <svg>, filled with the link's
+ * (greyed) color. Solid + sized at 1em by CSS so it reads like an emoji/letter
+ * inline, rather than the thin stroke outline that looked odd at small sizes.
+ */
+const LOCK_PATH =
+  "M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z";
+
 const lockIcon = (): Element => ({
   type: "element",
   tagName: "svg",
   properties: {
     className: [LOCK_CLASS],
     xmlns: "http://www.w3.org/2000/svg",
-    width: 24,
-    height: 24,
     viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2,
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
+    fill: "currentColor",
     "aria-hidden": "true",
   },
   children: [
     {
       type: "element",
-      tagName: "rect",
-      properties: { width: 18, height: 11, x: 3, y: 11, rx: 2, ry: 2 },
-      children: [],
-    },
-    {
-      type: "element",
       tagName: "path",
-      properties: { d: "M7 11V7a5 5 0 0 1 10 0v4" },
+      properties: { d: LOCK_PATH },
       children: [],
     },
   ],
